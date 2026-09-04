@@ -204,7 +204,11 @@ async def get_latest_prediction(zone_id: str) -> Optional[Dict[str, Any]]:
         return None
     row=dict(res.data[0]); row["zone_id"]=zone_id; return row
 async def upsert_prediction(zone_id: str, result: Dict[str, Any], priority: Dict[str, Any]) -> Dict[str, Any]:
-    c=await client(); zone=await c.table("zones").select("id").eq("zone_id",zone_id).single().execute(); row={"zone_id":zone.data["id"],"probability":result["probability"],"risk_score":result["risk_score"],"prediction":result["prediction"],"severity":result["severity"],"priority":priority["priority"],"model_version":result["model_version"],"features_used":result.get("features_used") or {},"contributing_factors":result.get("contributing_factors") or [],"source_map":result.get("source_map") or {},"predicted_at":result.get("timestamp") or datetime.now(timezone.utc).isoformat()}; res=await c.table("risk_predictions").upsert(row,on_conflict="zone_id").select("*").single().execute(); out=dict(res.data); out["zone_id"]=zone_id; out["response_priority"]=priority; return out
+    c=await client(); zone=await c.table("zones").select("id").eq("zone_id",zone_id).single().execute(); row={"zone_id":zone.data["id"],"probability":result["probability"],"risk_score":result["risk_score"],"prediction":result["prediction"],"severity":result["severity"],"priority":priority["priority"],"model_version":result["model_version"],"features_used":result.get("features_used") or {},"contributing_factors":result.get("contributing_factors") or [],"source_map":result.get("source_map") or {},"predicted_at":result.get("timestamp") or datetime.now(timezone.utc).isoformat()};     res=await c.table("risk_predictions").upsert(row,on_conflict="zone_id").execute()
+    if not res.data:
+        raise RuntimeError("prediction_persist_failed")
+    saved = res.data[0] if isinstance(res.data, list) else res.data
+    out=dict(saved); out["zone_id"]=zone_id; out["response_priority"]=priority; return out
 async def create_feedback(payload: Dict[str, Any]) -> Dict[str, Any]:
     c=await client(); zone=await c.table("zones").select("id").eq("zone_id",payload["zone_id"]).single().execute(); row={"zone_id":zone.data["id"],"label":payload["label"],"notes":payload.get("notes") or "","created_by":payload.get("created_by")};
     if payload.get("prediction_id"): row["prediction_id"]=payload["prediction_id"]

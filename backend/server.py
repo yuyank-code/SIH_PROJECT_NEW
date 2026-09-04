@@ -31,13 +31,55 @@ app = FastAPI(title="NER-SLIDE API", version="2.1.0-supabase")
 api = APIRouter(prefix="/api")
 install_auth_middleware(app)
 
+PREDICTION_REFRESH_SECONDS = max(3600, int(os.environ.get("PREDICTION_REFRESH_SECONDS", "21600")))
+_prediction_refresh_task: Optional[asyncio.Task] = None
+
+async def _refresh_predictions_once() -> Dict[str, int]:
+    zones = await repo.list_zones()
+    ok = failed = 0
+    for zone in zones:
+        try:
+            result = await risk_service.predict_zone(zone)
+            if "error" in result:
+                failed += 1
+                log.warning("automatic prediction skipped zone=%s reason=%s", zone.get("zone_id"), result.get("detail"))
+                continue
+            priority = risk_service.classify_response_priority(result, zone)
+            await repo.upsert_prediction(zone["zone_id"], result, priority)
+            ok += 1
+        except Exception as exc:
+            failed += 1
+            log.warning("automatic prediction failed zone=%s error=%s", zone.get("zone_id"), exc)
+    log.info("automatic prediction refresh complete ok=%s failed=%s", ok, failed)
+    return {"ok": ok, "failed": failed}
+
+async def _prediction_refresh_loop() -> None:
+    await asyncio.sleep(10)
+    while True:
+        try:
+            await _refresh_predictions_once()
+        except Exception as exc:
+            log.exception("automatic prediction refresh failed: %s", exc)
+        await asyncio.sleep(PREDICTION_REFRESH_SECONDS)
+
 @app.on_event("startup")
 async def startup() -> None:
+    global _prediction_refresh_task
     await repo.client()
     log.info("Supabase persistence initialized")
+    _prediction_refresh_task = asyncio.create_task(_prediction_refresh_loop())
+    log.info("Automatic prediction refresh enabled interval=%ss", PREDICTION_REFRESH_SECONDS)
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
+    global _prediction_refresh_task
+    if _prediction_refresh_task:
+        _prediction_refresh_task.cancel()
+        try:
+            await _prediction_refresh_task
+        except asyncio.CancelledError:
+            pass
+        _prediction_refresh_task = None
     await repo.close()
 
 @api.get("/health")
