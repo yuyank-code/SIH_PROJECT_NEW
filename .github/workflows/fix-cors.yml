@@ -17,15 +17,21 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('backend/server.py')
+          p = Path("backend/server.py")
           s = p.read_text()
-          old = '''app.add_middleware(\n    CORSMiddleware,\n    allow_credentials=True,\n    allow_origins=[x.strip() for x in os.environ.get("CORS_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",") if x.strip()],\n    allow_methods=["*"],\n    allow_headers=["*"],\n)'''
-          new = '''app.add_middleware(\n    CORSMiddleware,\n    allow_credentials=True,\n    allow_origins=[x.strip() for x in os.environ.get("CORS_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",") if x.strip()],\n    allow_origin_regex=r"^https://sih-project-[a-z0-9-]+-diabetes\\.vercel\\.app$",\n    allow_methods=["*"],\n    allow_headers=["*"],\n)'''
-          if 'allow_origin_regex=r"^https://sih-project-' in s:\n              raise SystemExit('CORS regex already present')\n          if old not in s:\n              raise SystemExit('expected CORS block not found')\n          p.write_text(s.replace(old, new))\n          PY
+          needle = '    allow_origins=[x.strip() for x in os.environ.get("CORS_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",") if x.strip()],\n'
+          replacement = needle + '    allow_origin_regex=r"^https://sih-project-[a-z0-9-]+-diabetes\\.vercel\\.app$",\n'
+          if 'allow_origin_regex=r"^https://sih-project-' in s:
+              raise SystemExit(0)
+          if needle not in s:
+              raise SystemExit("expected CORS allow_origins line not found")
+          p.write_text(s.replace(needle, replacement, 1))
+          PY
       - name: Commit patch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add backend/server.py
+          git diff --cached --quiet && exit 0
           git commit -m 'fix: allow Vercel preview domains in CORS'
           git push
