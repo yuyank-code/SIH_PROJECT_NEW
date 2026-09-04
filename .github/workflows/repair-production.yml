@@ -1,0 +1,41 @@
+name: Repair production compatibility
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch empty prediction lookup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('backend/app/db/supabase_repo.py')
+          s = p.read_text()
+          old = '''async def get_latest_prediction(zone_id: str) -> Optional[Dict[str, Any]]:\n    c=await client(); zone=await c.table("zones").select("id,zone_id").eq("zone_id",zone_id).maybe_single().execute()\n    if not zone.data:return None\n    res=await c.table("risk_predictions").select("*").eq("zone_id",zone.data["id"]).order("predicted_at",desc=True).limit(1).maybe_single().execute()\n    if not res.data:return None\n    row=dict(res.data); row["zone_id"]=zone_id; return row\n'''
+          new = '''async def get_latest_prediction(zone_id: str) -> Optional[Dict[str, Any]]:\n    c=await client()\n    zone_res=await c.table("zones").select("id,zone_id").eq("zone_id",zone_id).limit(1).execute()\n    if not zone_res.data:\n        return None\n    zone=zone_res.data[0]\n    res=await c.table("risk_predictions").select("*").eq("zone_id",zone["id"]).order("predicted_at",desc=True).limit(1).execute()\n    if not res.data:\n        return None\n    row=dict(res.data[0]); row["zone_id"]=zone_id; return row\n'''
+          if old not in s:
+              raise SystemExit('expected get_latest_prediction block not found')
+          p.write_text(s.replace(old, new))
+          PY
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/db/supabase_repo.py
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: handle empty latest prediction lookup'
+          git push
+      - name: Remove repair workflow
+        if: success()
+        run: |
+          git rm .github/workflows/repair-production.yml
+          git commit -m 'chore: remove temporary repair workflow'
+          git push
