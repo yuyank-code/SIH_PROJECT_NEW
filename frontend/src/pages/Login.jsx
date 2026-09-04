@@ -18,6 +18,8 @@ export default function Login() {
     const [fullName, setFullName] = useState("");
     const [mode, setMode] = useState("signin");
     const [loading, setLoading] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [confirmationPending, setConfirmationPending] = useState(false);
     const [msg, setMsg] = useState("");
 
     useEffect(() => {
@@ -32,6 +34,23 @@ export default function Login() {
         });
     }, [nav]);
 
+    const resendConfirmation = async () => {
+        const targetEmail = email.trim();
+        if (!targetEmail) {
+            setMsg("Enter your email address first.");
+            return;
+        }
+        setResending(true); setMsg("");
+        try {
+            const { error } = await auth.resendConfirmation(targetEmail);
+            if (error) throw error;
+            setConfirmationPending(true);
+            setMsg("Confirmation email sent. Check your inbox (and spam folder).");
+        } catch (error) {
+            setMsg(error?.message || "Unable to resend the confirmation email. Please wait before trying again.");
+        } finally { setResending(false); }
+    };
+
     const submit = async (e) => {
         e.preventDefault(); setLoading(true); setMsg("");
         try {
@@ -40,7 +59,8 @@ export default function Login() {
                 : await auth.signUp(email.trim(), password, fullName.trim());
             if (result.error) throw result.error;
             if (mode === "signup" && !result.data?.session) {
-                setMsg("Account created. Check your email to confirm, then sign in.");
+                setConfirmationPending(true);
+                setMsg("Account created. Check your email to confirm, then sign in. If it does not arrive, use Resend confirmation email below.");
                 setMode("signin");
                 return;
             }
@@ -49,7 +69,13 @@ export default function Login() {
             setRole(role);
             nav(ROUTES[role] || "/public", { replace: true });
         } catch (error) {
-            setMsg(error?.message || "Authentication failed.");
+            const message = error?.message || "Authentication failed.";
+            if (mode === "signin" && /email not confirmed/i.test(message)) {
+                setConfirmationPending(true);
+                setMsg("Your email is not confirmed yet. Check your inbox or resend the confirmation email below.");
+            } else {
+                setMsg(message);
+            }
         } finally { setLoading(false); }
     };
 
@@ -68,7 +94,12 @@ export default function Login() {
                         <input value={password} onChange={e=>setPassword(e.target.value)} required minLength={6} type="password" placeholder="Password" className="w-full tactical-border bg-transparent p-3 text-sm" />
                         <button disabled={loading} className="w-full py-3 bg-[var(--sev-critical)] text-white font-mono uppercase tracking-[0.15em] text-sm disabled:opacity-50">{loading ? "Authenticating…" : mode === "signin" ? "Sign in" : "Create account"}</button>
                         {msg && <div className="font-mono text-xs text-center text-[var(--text-2)]">{msg}</div>}
-                        <button type="button" onClick={()=>{setMode(mode === "signin" ? "signup" : "signin");setMsg("");}} className="w-full text-xs font-mono uppercase tracking-[0.12em] text-[var(--text-2)] hover:text-white">{mode === "signin" ? "Create a citizen account" : "Back to sign in"}</button>
+                        {confirmationPending && mode === "signin" && (
+                            <button type="button" onClick={resendConfirmation} disabled={resending || loading} className="w-full py-2 border border-[var(--border)] text-xs font-mono uppercase tracking-[0.12em] hover:text-white disabled:opacity-50">
+                                {resending ? "Sending…" : "Resend confirmation email"}
+                            </button>
+                        )}
+                        <button type="button" onClick={()=>{setMode(mode === "signin" ? "signup" : "signin");setConfirmationPending(false);setMsg("");}} className="w-full text-xs font-mono uppercase tracking-[0.12em] text-[var(--text-2)] hover:text-white">{mode === "signin" ? "Create a citizen account" : "Back to sign in"}</button>
                     </form>
                     <div className="tactical-card p-6 md:p-8">
                         <div className="font-mono uppercase tracking-[0.15em] text-xs text-[var(--text-2)] mb-4">Server-assigned roles</div>
