@@ -194,11 +194,15 @@ async def get_predictions() -> List[Dict[str, Any]]:
         z=x.pop("zones",{}) or {}; x["zone_id"]=z.get("zone_id"); x["zone_name"]=z.get("name"); x["state"]=z.get("state"); x["district"]=z.get("district"); out.append(x)
     return out
 async def get_latest_prediction(zone_id: str) -> Optional[Dict[str, Any]]:
-    c=await client(); zone=await c.table("zones").select("id,zone_id").eq("zone_id",zone_id).maybe_single().execute()
-    if not zone.data:return None
-    res=await c.table("risk_predictions").select("*").eq("zone_id",zone.data["id"]).order("predicted_at",desc=True).limit(1).maybe_single().execute()
-    if not res.data:return None
-    row=dict(res.data); row["zone_id"]=zone_id; return row
+    c=await client()
+    zone_res=await c.table("zones").select("id,zone_id").eq("zone_id",zone_id).limit(1).execute()
+    if not zone_res.data:
+        return None
+    zone=zone_res.data[0]
+    res=await c.table("risk_predictions").select("*").eq("zone_id",zone["id"]).order("predicted_at",desc=True).limit(1).execute()
+    if not res.data:
+        return None
+    row=dict(res.data[0]); row["zone_id"]=zone_id; return row
 async def upsert_prediction(zone_id: str, result: Dict[str, Any], priority: Dict[str, Any]) -> Dict[str, Any]:
     c=await client(); zone=await c.table("zones").select("id").eq("zone_id",zone_id).single().execute(); row={"zone_id":zone.data["id"],"probability":result["probability"],"risk_score":result["risk_score"],"prediction":result["prediction"],"severity":result["severity"],"priority":priority["priority"],"model_version":result["model_version"],"features_used":result.get("features_used") or {},"contributing_factors":result.get("contributing_factors") or [],"source_map":result.get("source_map") or {},"predicted_at":result.get("timestamp") or datetime.now(timezone.utc).isoformat()}; res=await c.table("risk_predictions").upsert(row,on_conflict="zone_id").select("*").single().execute(); out=dict(res.data); out["zone_id"]=zone_id; out["response_priority"]=priority; return out
 async def create_feedback(payload: Dict[str, Any]) -> Dict[str, Any]:
