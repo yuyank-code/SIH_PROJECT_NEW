@@ -1,0 +1,112 @@
+name: Repair and automate predictions
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch prediction persistence and scheduler
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          repo = Path('backend/app/db/supabase_repo.py')
+          s = repo.read_text()
+          old = '''res=await c.table("risk_predictions").upsert(row,on_conflict="zone_id").select("*").single().execute(); out=dict(res.data); out["zone_id"]=zone_id; out["response_priority"]=priority; return out'''
+          new = '''res=await c.table("risk_predictions").upsert(row,on_conflict="zone_id").execute()
+          if not res.data:
+              raise RuntimeError("prediction_persist_failed")
+          saved = res.data[0] if isinstance(res.data, list) else res.data
+          out=dict(saved); out["zone_id"]=zone_id; out["response_priority"]=priority; return out'''
+          if old in s:
+              s=s.replace(old,new,1)
+          elif 'prediction_persist_failed' not in s:
+              raise SystemExit('prediction upsert block not found')
+          repo.write_text(s)
+
+          server = Path('backend/server.py')
+          s = server.read_text()
+          old_start = '''@app.on_event("startup")
+          async def startup() -> None:
+              await repo.client()
+              log.info("Supabase persistence initialized")
+
+          @app.on_event("shutdown")
+          async def shutdown() -> None:
+              await repo.close()
+          '''
+          new_start = '''PREDICTION_REFRESH_SECONDS = max(3600, int(os.environ.get("PREDICTION_REFRESH_SECONDS", "21600")))
+          _prediction_refresh_task: Optional[asyncio.Task] = None
+
+          async def _refresh_predictions_once() -> Dict[str, int]:
+              zones = await repo.list_zones()
+              ok = failed = 0
+              for zone in zones:
+                  try:
+                      result = await risk_service.predict_zone(zone)
+                      if "error" in result:
+                          failed += 1
+                          log.warning("automatic prediction skipped zone=%s reason=%s", zone.get("zone_id"), result.get("detail"))
+                          continue
+                      priority = risk_service.classify_response_priority(result, zone)
+                      await repo.upsert_prediction(zone["zone_id"], result, priority)
+                      ok += 1
+                  except Exception as exc:
+                      failed += 1
+                      log.warning("automatic prediction failed zone=%s error=%s", zone.get("zone_id"), exc)
+              log.info("automatic prediction refresh complete ok=%s failed=%s", ok, failed)
+              return {"ok": ok, "failed": failed}
+
+          async def _prediction_refresh_loop() -> None:
+              await asyncio.sleep(10)
+              while True:
+                  try:
+                      await _refresh_predictions_once()
+                  except Exception as exc:
+                      log.exception("automatic prediction refresh failed: %s", exc)
+                  await asyncio.sleep(PREDICTION_REFRESH_SECONDS)
+
+          @app.on_event("startup")
+          async def startup() -> None:
+              global _prediction_refresh_task
+              await repo.client()
+              log.info("Supabase persistence initialized")
+              _prediction_refresh_task = asyncio.create_task(_prediction_refresh_loop())
+              log.info("Automatic prediction refresh enabled interval=%ss", PREDICTION_REFRESH_SECONDS)
+
+          @app.on_event("shutdown")
+          async def shutdown() -> None:
+              global _prediction_refresh_task
+              if _prediction_refresh_task:
+                  _prediction_refresh_task.cancel()
+                  try:
+                      await _prediction_refresh_task
+                  except asyncio.CancelledError:
+                      pass
+                  _prediction_refresh_task = None
+              await repo.close()
+          '''
+          if 'Automatic prediction refresh enabled' not in s:
+              if old_start not in s:
+                  raise SystemExit('startup block not found')
+              s=s.replace(old_start,new_start,1)
+          server.write_text(s)
+          PY
+      - name: Validate patched files
+        run: python -m py_compile backend/server.py backend/app/db/supabase_repo.py
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/server.py backend/app/db/supabase_repo.py
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: repair prediction persistence and automate refresh'
+          git push
