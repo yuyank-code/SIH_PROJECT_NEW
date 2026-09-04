@@ -880,6 +880,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=[x.strip() for x in os.environ.get("CORS_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",") if x.strip()],
+    allow_origin_regex=r"^https://sih-project-[a-z0-9-]+-diabetes\.vercel\.app$",
     allow_methods=["*"],
     allow_headers=["*"],
 )
