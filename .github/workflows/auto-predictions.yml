@@ -22,12 +22,7 @@ jobs:
           repo = Path('backend/app/db/supabase_repo.py')
           s = repo.read_text()
           old = 'res=await c.table("risk_predictions").upsert(row,on_conflict="zone_id").select("*").single().execute(); out=dict(res.data); out["zone_id"]=zone_id; out["response_priority"]=priority; return out'
-          new = dedent('''\
-          res=await c.table("risk_predictions").upsert(row,on_conflict="zone_id").execute()
-          if not res.data:
-              raise RuntimeError("prediction_persist_failed")
-          saved = res.data[0] if isinstance(res.data, list) else res.data
-          out=dict(saved); out["zone_id"]=zone_id; out["response_priority"]=priority; return out''')
+          new = '    res=await c.table("risk_predictions").upsert(row,on_conflict="zone_id").execute()\n    if not res.data:\n        raise RuntimeError("prediction_persist_failed")\n    saved = res.data[0] if isinstance(res.data, list) else res.data\n    out=dict(saved); out["zone_id"]=zone_id; out["response_priority"]=priority; return out'
           if old in s:
               s = s.replace(old, new, 1)
           elif 'prediction_persist_failed' not in s:
