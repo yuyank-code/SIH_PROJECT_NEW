@@ -1,0 +1,31 @@
+name: Fix production CORS
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add Vercel preview CORS regex
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('backend/server.py')
+          s = p.read_text()
+          old = '''app.add_middleware(\n    CORSMiddleware,\n    allow_credentials=True,\n    allow_origins=[x.strip() for x in os.environ.get("CORS_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",") if x.strip()],\n    allow_methods=["*"],\n    allow_headers=["*"],\n)'''
+          new = '''app.add_middleware(\n    CORSMiddleware,\n    allow_credentials=True,\n    allow_origins=[x.strip() for x in os.environ.get("CORS_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",") if x.strip()],\n    allow_origin_regex=r"^https://sih-project-[a-z0-9-]+-diabetes\\.vercel\\.app$",\n    allow_methods=["*"],\n    allow_headers=["*"],\n)'''
+          if 'allow_origin_regex=r"^https://sih-project-' in s:\n              raise SystemExit('CORS regex already present')\n          if old not in s:\n              raise SystemExit('expected CORS block not found')\n          p.write_text(s.replace(old, new))\n          PY
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/server.py
+          git commit -m 'fix: allow Vercel preview domains in CORS'
+          git push
