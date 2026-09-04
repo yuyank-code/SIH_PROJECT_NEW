@@ -14,6 +14,9 @@ api.interceptors.request.use(async (config) => {
 
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 
+// Keep email confirmations anchored to the production site rather than a transient Vercel preview URL.
+const AUTH_REDIRECT_URL = process.env.REACT_APP_SITE_URL || "https://sih-project-brxtqhhd7-diabetes.vercel.app";
+
 export const auth = {
     signIn: (email, password) => supabase.auth.signInWithPassword({ email: normalizeEmail(email), password }),
     signUp: (email, password, fullName = "") => supabase.auth.signUp({
@@ -21,8 +24,13 @@ export const auth = {
         password,
         options: {
             data: { full_name: fullName },
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: AUTH_REDIRECT_URL,
         },
+    }),
+    resendConfirmation: (email) => supabase.auth.resend({
+        type: "signup",
+        email: normalizeEmail(email),
+        options: { emailRedirectTo: AUTH_REDIRECT_URL },
     }),
     signOut: () => supabase.auth.signOut(),
     session: () => supabase.auth.getSession(),
