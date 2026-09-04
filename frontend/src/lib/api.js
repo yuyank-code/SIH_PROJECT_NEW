@@ -1,7 +1,9 @@
 import axios from "axios";
 import { supabase } from "./supabaseClient";
 
-const rawBase = process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+// Environment variables override these production defaults so a Vercel deployment
+// cannot silently fall back to localhost when project environment variables are absent.
+const rawBase = process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_BACKEND_URL || "https://ner-slide-api-9h6y.onrender.com";
 export const API = rawBase.replace(/\/$/, "").replace(/\/api\/$/, "") + "/api";
 export const api = axios.create({ baseURL: API, timeout: 30000 });
 
