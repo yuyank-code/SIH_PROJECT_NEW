@@ -1,0 +1,58 @@
+name: V6 Real Data Acquisition
+
+on:
+  push:
+    branches: [v6-real-data-research]
+    paths:
+      - 'backend/v6_data/**'
+      - '.github/workflows/v6-real-data-acquisition.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: '1'
+  V6_DATA_ROOT: data/v6/raw
+
+jobs:
+  acquire-public-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout V6 branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/v6_data/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r backend/v6_data/requirements.txt
+
+      - name: Acquire real public data
+        run: python backend/v6_data/acquire_public.py
+
+      - name: Validate acquisition manifest
+        run: |
+          test -s data/v6/raw/acquisition_manifest.jsonl
+          python - <<'PY'
+          import json, pathlib
+          p=pathlib.Path('data/v6/raw/acquisition_manifest.jsonl')
+          rows=[json.loads(x) for x in p.read_text().splitlines() if x.strip()]
+          required={'source_id','status','retrieval_timestamp'}
+          assert rows and required.issubset(rows[0]), rows[:1]
+          print('manifest records:', len(rows))
+          print('sources:', sorted({r['source_id'] for r in rows}))
+          PY
+
+      - name: Upload raw acquisition artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ner-slide-v6-real-data-raw-${{ github.sha }}
+          path: data/v6/raw/
+          retention-days: 14
+          if-no-files-found: error
