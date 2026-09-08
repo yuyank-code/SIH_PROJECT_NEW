@@ -1,0 +1,23 @@
+{
+  "version": "v6-feature-universe-1",
+  "rule": "candidate universe; final production features must earn inclusion through leakage-safe ablation",
+  "dynamic": {
+    "precipitation": ["rain_30m", "rain_1h", "rain_3h", "rain_6h", "rain_12h", "rain_1d", "rain_3d", "rain_7d", "rain_15d", "rain_30d", "rain_60d", "rain_max_3d", "rain_max_7d", "rain_intensity", "rain_threshold_exceedance", "rainy_days_7d", "rainy_days_30d", "dry_spell_days", "rain_anomaly", "rain_trend"],
+    "soil_moisture": ["sm_surface", "sm_rootzone", "sm_anomaly", "sm_percentile", "sm_trend", "sm_lag_1d", "sm_lag_3d", "sm_lag_7d"],
+    "weather_context": ["temperature", "relative_humidity", "dew_point", "wind_speed", "evapotranspiration"],
+    "seismic": ["earthquake_count_1d", "earthquake_count_7d", "max_magnitude_7d", "min_distance_km", "depth_km", "seismic_decay"],
+    "satellite": ["sar_backscatter_change", "sar_coherence_change", "optical_change", "vegetation_change", "surface_water_change", "deformation_indicator"]
+  },
+  "static": {
+    "terrain": ["elevation", "slope", "aspect_sin", "aspect_cos", "curvature", "profile_curvature", "plan_curvature", "relief", "roughness", "tpi"],
+    "hydrology": ["flow_accumulation", "flow_direction", "drainage_density", "distance_to_river", "twi", "basin_id", "subbasin_id"],
+    "soil": ["soil_depth", "sand", "silt", "clay", "organic_carbon", "bulk_density", "ph", "coarse_fragments", "nitrogen", "cation_exchange_capacity", "hydraulic_conductivity", "available_water_capacity"],
+    "geology": ["lithology", "geologic_class", "fault_distance", "structural_indicator"],
+    "land_cover": ["landcover_class", "vegetation_fraction", "built_fraction", "forest_fraction", "bare_ground_fraction"]
+  },
+  "spatial": ["neighbor_mean_rain", "neighbor_max_rain", "neighbor_mean_soil_moisture", "neighbor_risk_context", "graph_embedding"],
+  "quality": ["source_age_hours", "missing_fraction", "coverage_fraction", "provider_disagreement", "stale_flag"],
+  "downstream_exposure": ["population", "population_density", "buildings", "hospital_distance", "school_distance", "critical_facility_count", "shelter_capacity", "road_connectivity"],
+  "routing": ["edge_length_m", "travel_time_s", "road_class", "surface", "closure_state", "road_hazard_probability", "road_damage_score", "road_observation_confidence", "edge_data_age_hours"],
+  "recovery": ["damage_fraction", "debris_depth", "people_disconnected", "critical_facility_access", "alternate_route_time", "crew_distance", "equipment_available", "estimated_repair_hours", "worker_risk", "weather_window", "action_dependency_count"]
+}
