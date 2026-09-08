@@ -6,6 +6,11 @@ on:
     paths:
       - 'backend/v6_data/**'
       - '.github/workflows/v6-real-data-acquisition.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/v6_data/**'
+      - '.github/workflows/v6-real-data-acquisition.yml'
   workflow_dispatch:
 
 permissions:
