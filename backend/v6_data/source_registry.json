@@ -1,0 +1,24 @@
+{
+  "schema_version": "v6-source-registry-1",
+  "aoi": {
+    "name": "NER India",
+    "bbox_wgs84": [21.0, 88.0, 30.0, 98.5],
+    "states": ["Arunachal Pradesh", "Assam", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Sikkim", "Tripura"]
+  },
+  "sources": [
+    {"id":"nasa_coolr_events","family":"landslide_inventory","authority":"NASA","access":"public_arcgis","historical":true,"nrt":true,"url":"https://gis.earthdata.nasa.gov/gis05/rest/services/Landslides/COOLR_Events_Points/FeatureServer/0"},
+    {"id":"nasa_coolr_reports","family":"citizen_field_landslide","authority":"NASA","access":"public_arcgis","historical":true,"nrt":true,"url":"https://gis.earthdata.nasa.gov/gis05/rest/services/Landslides/COOLR_Reports_Points/FeatureServer/0"},
+    {"id":"usgs_earthquakes","family":"seismic","authority":"USGS","access":"public_fdsn","historical":true,"nrt":true,"url":"https://earthquake.usgs.gov/fdsnws/event/1/query"},
+    {"id":"osm_ne_india","family":"road_network","authority":"OpenStreetMap/Geofabrik","access":"public_download","historical":true,"nrt":true,"url":"https://download.geofabrik.de/asia/india/north-eastern-zone.html"},
+    {"id":"worldcover_2021","family":"land_cover","authority":"ESA/Copernicus","access":"public_s3","historical":true,"nrt":false,"url":"https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/"},
+    {"id":"soilgrids_2","family":"soil","authority":"ISRIC","access":"public_wcs_webdav","historical":true,"nrt":false,"url":"https://files.isric.org/soilgrids/latest/data/"},
+    {"id":"hydrorivers_asia","family":"hydrology","authority":"HydroSHEDS","access":"public_download","historical":true,"nrt":false,"url":"https://data.hydrosheds.org/file/HydroRIVERS/HydroRIVERS_v10_as_shp.zip"},
+    {"id":"hydrobasins_asia","family":"hydrology","authority":"HydroSHEDS","access":"public_download","historical":true,"nrt":false,"url":"https://www.hydrosheds.org/products/hydrobasins"},
+    {"id":"sentinel_1","family":"satellite_sar","authority":"Copernicus/ESA","access":"public_dataspace","historical":true,"nrt":true,"url":"https://dataspace.copernicus.eu/data-collections/copernicus-sentinel-missions/sentinel-1"},
+    {"id":"sentinel_2","family":"satellite_optical","authority":"Copernicus/ESA","access":"public_dataspace","historical":true,"nrt":true,"url":"https://dataspace.copernicus.eu/data-collections/copernicus-sentinel-missions/sentinel-2"},
+    {"id":"nasa_gpm_imerg","family":"precipitation","authority":"NASA GPM","access":"public_or_registered_by_product","historical":true,"nrt":true,"url":"https://gpm.nasa.gov/data-access/downloads/gpm"},
+    {"id":"era5_land","family":"weather_land_reanalysis","authority":"ECMWF/Copernicus","access":"cds_api_key","historical":true,"nrt":false,"url":"https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land"},
+    {"id":"open_meteo_archive","family":"weather","authority":"Open-Meteo/ERA5","access":"public_api","historical":true,"nrt":true,"url":"https://open-meteo.com/en/docs/historical-weather-api"},
+    {"id":"isro_bhuvan_landslide","family":"indian_landslide_inventory","authority":"ISRO/NRSC","access":"public_web_service","historical":true,"nrt":false,"url":"https://bhuvan-app1.nrsc.gov.in/disaster/usrtasks/landslide/landslide.php?uname=empty"}
+  ]
+}
